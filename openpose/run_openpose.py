@@ -24,7 +24,8 @@ class OpenPose:
             H, W, C = input_image.shape
             assert (H == 512 and W == 384), 'Incorrect input image shape'
             pose, detected_map = self.preprocessor(input_image, hand_and_face=False)
-
+            Image.fromarray(detected_map).save("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/map.png")
+            
             candidate = pose['bodies']['candidate']
             subset = pose['bodies']['subset'][0][:18]
             for i in range(18):
@@ -57,6 +58,6 @@ class OpenPose:
 
 
 if __name__ == '__main__':
-
-    model = OpenPose()
-    model('./images/bad_model.jpg')
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = OpenPose("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/checkpoints/body_pose_model.pth", device=device)
+    model('/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/model4.jpg')

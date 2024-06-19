@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from PIL import Image, ImageDraw
+import torch
 
 label_map = {
     "background": 0,
@@ -51,16 +52,16 @@ def refine_mask(mask):
 
     return refine_mask
 
-def get_mask_location(model_type, category, model_parse: Image.Image, keypoint: dict, width=384,height=512):
+
+
+
+
+
+def get_mask_location(category, model_parse: Image.Image, keypoint: dict, width=384,height=512):
     im_parse = model_parse.resize((width, height), Image.NEAREST)
     parse_array = np.array(im_parse)
 
-    if model_type == 'hd':
-        arm_width = 60
-    elif model_type == 'dc':
-        arm_width = 45
-    else:
-        raise ValueError("model_type must be \'hd\' or \'dc\'!")
+    arm_width = 50
 
     parse_head = (parse_array == 1).astype(np.float32) + \
                  (parse_array == 3).astype(np.float32) + \
@@ -125,7 +126,7 @@ def get_mask_location(model_type, category, model_parse: Image.Image, keypoint: 
         size_right = [shoulder_right[0] - ARM_LINE_WIDTH // 2, shoulder_right[1] - ARM_LINE_WIDTH // 2, shoulder_right[0] + ARM_LINE_WIDTH // 2,
                       shoulder_right[1] + ARM_LINE_WIDTH // 2]
         
-
+    
         if wrist_right[0] <= 1. and wrist_right[1] <= 1.:
             im_arms_right = arms_right
         else:
@@ -137,7 +138,7 @@ def get_mask_location(model_type, category, model_parse: Image.Image, keypoint: 
             im_arms_left = arms_left
         else:
             wrist_left = extend_arm_mask(wrist_left, elbow_left, 1.2)
-            arms_draw_left.line(np.concatenate((wrist_left, elbow_left, shoulder_left)).astype(np.uint16).tolist(), 'white', ARM_LINE_WIDTH, 'curve')
+            arms_draw_left.line (np.concatenate((wrist_left, elbow_left, shoulder_left)).astype(np.uint16).tolist(), 'white', ARM_LINE_WIDTH, 'curve')
             arms_draw_left.arc(size_left, 0, 360, 'white', ARM_LINE_WIDTH // 2)
 
         hands_left = np.logical_and(np.logical_not(im_arms_left), arms_left)
@@ -155,9 +156,66 @@ def get_mask_location(model_type, category, model_parse: Image.Image, keypoint: 
         parse_mask += np.logical_or(parse_mask, arm_mask)
 
     parse_mask = np.logical_and(parser_mask_changeable, np.logical_not(parse_mask))
-
     parse_mask_total = np.logical_or(parse_mask, parser_mask_fixed)
     inpaint_mask = 1 - parse_mask_total
+
+    # #convert parse_mask to iamge and save
+    # parse_mask_img = Image.fromarray(parse_mask.astype(np.uint8) * 255)
+    # parse_mask_img.save("trong_tuan.png")
+
+    # parse_mask_total_img = Image.fromarray(parse_mask_total.astype(np.uint8) * 255)
+    # parse_mask_total_img.save("trong_tuan_total.png")
+
+    # parser_mask_fixed_img = Image.fromarray(parser_mask_fixed.astype(np.uint8) * 255)
+    # parser_mask_fixed_img.save("trong_tuan_fixed.png")
+    # #end
+
+    #my code
+    hip_right = np.multiply(tuple(pose_data[8][:2]), height / 512.0)
+    hip_left = np.multiply(tuple(pose_data[11][:2]), height / 512.0)
+    knee_right = np.multiply(tuple(pose_data[9][:2]), height / 512.0)
+    knee_left = np.multiply(tuple(pose_data[12][:2]), height / 512.0)
+    ankle_right = np.multiply(tuple(pose_data[10][:2]), height / 512.0)
+    ankle_left = np.multiply(tuple(pose_data[13][:2]), height / 512.0)
+
+    extra_mask = Image.new('L', (width, height))
+    extra_draw = ImageDraw.Draw(extra_mask)
+
+    #mask for dresses category
+    if category == 'dresses':
+        
+        #draw line from 6 points
+        if ankle_left[0] != 0 and ankle_right[0] != 0 and ankle_left[1] != 0 and ankle_right[1] != 0:
+            extra_draw.line(np.concatenate((ankle_right, ankle_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((hip_right, knee_right, ankle_right)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((hip_left, knee_left, ankle_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((hip_right, hip_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((knee_right, knee_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+
+        elif knee_left[0] != 0 and knee_right[0] != 0 and knee_left[1] != 0 and knee_right[1] != 0:
+            extra_draw.line(np.concatenate((hip_right, knee_right)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((hip_left, knee_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((hip_right, hip_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+        else:
+            pass 
+
+    #mask for upper_body
+    if category == "upper_body":
+        if knee_left[0] != 0 and knee_right[0] != 0 and knee_left[1] != 0 and knee_right[1] != 0:
+            mid_point_left = (hip_left + knee_left) / 2
+            mid_point_right = (hip_right + knee_right) / 2
+            extra_draw.line(np.concatenate((hip_right, hip_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((mid_point_right, mid_point_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((hip_right, mid_point_right)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+            extra_draw.line(np.concatenate((hip_left, mid_point_left)).astype(np.uint16).tolist(), 'white', 10, 'curve')
+        else:
+            pass
+
+    extra_mask.save("trong_tuan_extra.png")
+    
+    
+    inpaint_mask = np.logical_or(extra_mask, inpaint_mask)
+    
     img = np.where(inpaint_mask, 255, 0)
     dst = hole_fill(img.astype(np.uint8))
     dst = refine_mask(dst)
@@ -166,3 +224,21 @@ def get_mask_location(model_type, category, model_parse: Image.Image, keypoint: 
     mask_gray = Image.fromarray(inpaint_mask.astype(np.uint8) * 127)
 
     return mask, mask_gray
+
+
+import matplotlib.pyplot as plt
+from openpose.run_openpose import OpenPose
+# from humanparsing.run_parsing import Parsing
+
+if  __name__ == '__main__':
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = OpenPose("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/checkpoints/body_pose_model.pth", device=device)
+    
+    model_image = Image.open('/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/model5.jpg')
+    model_image = model_image.resize((768, 1024))
+    keypoints = model(model_image.resize((384, 512)))
+    # print(keypoints)
+
+    # parsed_image = Image.open('/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/parsed_image_model7.png').copy()
+    # mask, mask_gray = get_mask_location('dresses', parsed_image, keypoints, width=384, height=512)
+    # mask.save("mask.png")

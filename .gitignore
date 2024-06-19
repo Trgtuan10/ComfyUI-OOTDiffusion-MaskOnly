@@ -4,11 +4,16 @@
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
+checkpoints/
 *.py[cod]
 *$py.class
 
 # C extensions
 *.so
+*.png
+*.jpg
+*.jpeg
+*.txt
 
 # Distribution / packaging
 .Python

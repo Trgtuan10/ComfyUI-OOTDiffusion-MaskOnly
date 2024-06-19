@@ -22,7 +22,7 @@ _category_readable = {
     "Dress": "dress",
 }
 
-class OOTDGenerate:
+class OOTDMasking:
     display_name = "OOTDiffusion Masking"
 
     @classmethod
@@ -44,7 +44,7 @@ class OOTDGenerate:
     CATEGORY = "Masking"
 
     def generate(
-        self, pipe: OOTDiffusion, cloth_image, model_image, category, seed, steps, cfg
+        self, pipe: OOTDiffusion, model_image, category
     ):
         # if model_image.shape != (1, 1024, 768, 3) or (
         #     cloth_image.shape != (1, 1024, 768, 3)
@@ -62,12 +62,6 @@ class OOTDGenerate:
         if model_image.size != (768, 1024):
             print(f"Inconsistent model_image size {model_image.size} != (768, 1024)")
         model_image = model_image.resize((768, 1024))
-        cloth_image = cloth_image.squeeze(0)
-        cloth_image = cloth_image.permute((2, 0, 1))
-        cloth_image = to_pil_image(cloth_image)
-        if cloth_image.size != (768, 1024):
-            print(f"Inconsistent cloth_image size {cloth_image.size} != (768, 1024)")
-        cloth_image = cloth_image.resize((768, 1024))
 
         model_parse, _ = pipe.parsing_model(model_image.resize((384, 512)))
         keypoints = pipe.openpose_model(model_image.resize((384, 512)))
@@ -83,21 +77,7 @@ class OOTDGenerate:
         mask_gray = mask_gray.resize((768, 1024), Image.NEAREST)
 
         masked_vton_img = Image.composite(mask_gray, model_image, mask)
-        # images = pipe(
-        #     category=category,
-        #     image_garm=cloth_image,
-        #     image_vton=masked_vton_img,
-        #     mask=mask,
-        #     image_ori=model_image,
-        #     num_samples=1,
-        #     num_steps=steps,
-        #     image_scale=cfg,
-        #     seed=seed,
-        # )
 
-        # pil(H,W,3) -> tensor(H,W,3)
-        # output_image = to_tensor(images[0])
-        # output_image = output_image.permute((1, 2, 0)).unsqueeze(0)
         masked_vton_img = masked_vton_img.convert("RGB")
         masked_vton_img = to_tensor(masked_vton_img)
         masked_vton_img = masked_vton_img.permute((1, 2, 0)).unsqueeze(0)
@@ -106,7 +86,7 @@ class OOTDGenerate:
 
 
 _export_classes = [
-    OOTDGenerate,
+    OOTDMasking,
 ]
 
 NODE_CLASS_MAPPINGS = {c.__name__: c for c in _export_classes}
