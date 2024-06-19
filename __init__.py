@@ -22,106 +22,26 @@ _category_readable = {
     "Dress": "dress",
 }
 
-
-class LoadOOTDPipeline:
-    display_name = "Load OOTDiffusion Local"
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "type": (["Half body", "Full body"],),
-                "path": ("STRING", {"default": "models/OOTDiffusion"}),
-            }
-        }
-
-    RETURN_TYPES = ("MODEL",)
-    RETURN_NAMES = ("pipe",)
-    FUNCTION = "load"
-
-    CATEGORY = "OOTD"
-
-    @staticmethod
-    def load_impl(type, path):
-        if type == "Half body":
-            type = "hd"
-        elif type == "Full body":
-            type = "dc"
-        else:
-            raise ValueError(
-                f"unknown input type {type} must be 'Half body' or 'Full body'"
-            )
-        if not os.path.isdir(path):
-            raise ValueError(f"input path {path} is not a directory")
-        return OOTDiffusion(path, model_type=type)
-
-    def load(self, type, path):
-        return (self.load_impl(type, path),)
-
-
-class LoadOOTDPipelineHub(LoadOOTDPipeline):
-    display_name = "Load OOTDiffusion from Hub🤗"
-
-    repo_id = "levihsu/OOTDiffusion"
-    repo_revision = "d33c517dc1b0718ea1136533e3720bb08fae641b"
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "type": (["Half body", "Full body"],),
-            }
-        }
-
-    def load(self, type):  # type: ignore
-        # DiffusionPipeline.from_pretrained doesn't support subfolder
-        # So we use snapshot_download to get local path first
-        path = snapshot_download(
-            self.repo_id,
-            revision=self.repo_revision,
-            resume_download=True,
-        )
-        if os.path.exists("models/OOTDiffusion"):
-            warnings.warn(
-                "You've downloaded models with huggingface_hub cache. "
-                "Consider removing 'models/OOTDiffusion' directory to free your disk space."
-            )
-        return (LoadOOTDPipeline.load_impl(type, path),)
-
-
 class OOTDGenerate:
-    display_name = "OOTDiffusion Generate"
+    display_name = "OOTDiffusion Masking"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "pipe": ("MODEL",),
                 "cloth_image": ("IMAGE",),
                 "model_image": ("IMAGE",),
                 # Openpose from comfyui-controlnet-aux not work
                 # "keypoints": ("POSE_KEYPOINT",),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xFFFFFFFFFFFFFFFF}),
-                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
-                "cfg": (
-                    "FLOAT",
-                    {
-                        "default": 2.0,
-                        "min": 0.0,
-                        "max": 14.0,
-                        "step": 0.1,
-                        "round": 0.01,
-                    },
-                ),
                 "category": (list(_category_readable.keys()),),
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "IMAGE")
-    RETURN_NAMES = ("image", "image_masked")
-    FUNCTION = "generate"
+    RETURN_TYPES = ("IMAGE")
+    RETURN_NAMES = ("image_masked")
+    FUNCTION = "Masking"
 
-    CATEGORY = "OOTD"
+    CATEGORY = "Masking"
 
     def generate(
         self, pipe: OOTDiffusion, cloth_image, model_image, category, seed, steps, cfg
@@ -134,10 +54,6 @@ class OOTDGenerate:
         #         f"Got model_image {model_image.shape} cloth_image {cloth_image.shape}"
         #     )
         category = _category_readable[category]
-        if pipe.model_type == "hd" and category != "upperbody":
-            raise ValueError(
-                "Half body (hd) model type can only be used with upperbody category"
-            )
 
         # (1,H,W,3) -> (3,H,W)
         model_image = model_image.squeeze(0)
@@ -167,31 +83,29 @@ class OOTDGenerate:
         mask_gray = mask_gray.resize((768, 1024), Image.NEAREST)
 
         masked_vton_img = Image.composite(mask_gray, model_image, mask)
-        images = pipe(
-            category=category,
-            image_garm=cloth_image,
-            image_vton=masked_vton_img,
-            mask=mask,
-            image_ori=model_image,
-            num_samples=1,
-            num_steps=steps,
-            image_scale=cfg,
-            seed=seed,
-        )
+        # images = pipe(
+        #     category=category,
+        #     image_garm=cloth_image,
+        #     image_vton=masked_vton_img,
+        #     mask=mask,
+        #     image_ori=model_image,
+        #     num_samples=1,
+        #     num_steps=steps,
+        #     image_scale=cfg,
+        #     seed=seed,
+        # )
 
         # pil(H,W,3) -> tensor(H,W,3)
-        output_image = to_tensor(images[0])
-        output_image = output_image.permute((1, 2, 0)).unsqueeze(0)
+        # output_image = to_tensor(images[0])
+        # output_image = output_image.permute((1, 2, 0)).unsqueeze(0)
         masked_vton_img = masked_vton_img.convert("RGB")
         masked_vton_img = to_tensor(masked_vton_img)
         masked_vton_img = masked_vton_img.permute((1, 2, 0)).unsqueeze(0)
 
-        return (output_image, masked_vton_img)
+        return  masked_vton_img
 
 
 _export_classes = [
-    LoadOOTDPipeline,
-    LoadOOTDPipelineHub,
     OOTDGenerate,
 ]
 
