@@ -60,4 +60,4 @@ class OpenPose:
 if __name__ == '__main__':
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = OpenPose("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/checkpoints/body_pose_model.pth", device=device)
-    model('/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/model4.jpg')
+    model('/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/model1.jpg')

@@ -29,10 +29,10 @@ if __name__ == '__main__':
     atr_model_path = "/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/checkpoints/parsing_atr.onnx"
     lip_model_path = "/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/checkpoints/parsing_lip.onnx"
     parsing = Parsing(atr_model_path, lip_model_path)
-    input_image = Image.open("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/model7.jpeg")  
+    input_image = Image.open("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/model1.jpg")  
     input_image = input_image.resize((768, 1024))
     parsed_image, face_mask = parsing(input_image.resize((384, 512)))
     
-    parsed_image.save("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/parsed_image_model7.png")
+    parsed_image.save("/home/trgtuan/OneDrive/My Git/ComfyUI-OOTDiffusion-MaskOnly/parsed_image_model1.png")
     # img = np.array(parsed_image)
     # np.savetxt("parsed_image.txt", img, fmt="%d")
